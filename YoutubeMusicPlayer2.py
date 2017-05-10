@@ -175,6 +175,17 @@ class Window:
 		self.shuffleButton = Button(self.app, font = "-weight bold", text = "Shuffle", command = self.shuffleButtonPressed)
 		self.shuffleButton.grid(row = 5, column = 3, sticky = E)
 		
+		#change playlist dropdown menu
+		self.playlistMenuChoice = StringVar()
+		self.playlistMenuChoice.set(self.playlist.playlistName)
+		
+		cleanPlaylistNames = []
+		for playlist in playlists:
+			cleanPlaylistNames.append(playlist.cleanPlaylistname)
+		
+		self.playlistMenu = OptionMenu(self.app, playlistMenuChoice, *cleanPlaylistNames, command = self.playlistMenuChanged)
+		self.playlistMenu.grid(row = 6, column = 0, sticky = W)
+		
 		#song playing
 		for i in range(0, 3):
 			self.songStrs.append(StringVar())
@@ -219,6 +230,9 @@ class Window:
 				songsUsed[r] = True
 				i += 1
 		self.playOrder = songListIndices[:]
+	
+	def playlistMenuChanged(self):
+		print("playlist menu changed")
 
 
 #read file playlists
