@@ -126,6 +126,24 @@ class Window:
 		self.root = Tk()
 		self.root.title("Youtube Music Player")
 		
+		SCREEN_WIDTH = self.root.winfo_screenwidth()
+		SCREEN_HEIGHT = self.root.winfo_screenheight()
+		
+		#set window to constant size
+		self.root.resizable(width = False, height = False)
+		
+		#move window to specific location and set size
+		WINDOW_WIDTH = 400
+		WINDOW_HEIGHT = 400
+		#x = (SCREEN_WIDTH / 2) - (WINDOW_WIDTH / 2)
+		#y = (SCREEN_HEIGHT / 2) - (WINDOW_HEIGHT / 2)
+		x = 0
+		y = 0
+		self.root.geometry("%dx%d+%d+%d" % (WINDOW_WIDTH, WINDOW_HEIGHT, x, y))
+		
+		#bring window to the top
+		self.root.lift()
+		
 		#make frame
 		self.app = Frame(self.root)
 		self.app.grid()
