@@ -3,6 +3,7 @@
 import time
 from random import randint
 import os
+import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
@@ -24,7 +25,16 @@ def secToMinSec(sec):
 	newSec2 = str(newSec)
 	if newSec < 10:
 		newSec2 = "0" + str(newSec)
+	if newMin < 10:
+		newMin2 = "0" + str(newMin)
 	return newMin2, newSec2
+
+def closeEverything():
+	print("QUIT")
+	driver.find_element_by_tag_name("body").send_keys(Keys.ALT + "f4")
+	root.destroy()
+	driver.quit()
+	sys.exit()
 
 class Playlist:
 	def __init__(self, playlistName, playlistIndex):
@@ -59,9 +69,9 @@ class Playlist:
 			self.songNames[i] = self.songNames[i].replace("_", " ")
 
 class Window:
-	def __init__(self, driver, playlist):
+	def __init__(self, driver, root, playlist):
 		self.driver = driver
-		
+		self.root = root
 		self.playlist = playlist
 		
 		self.playOrder = list(range(0, len(self.playlist.songNames)))
@@ -71,6 +81,9 @@ class Window:
 		self.back = False
 		self.shuffle = False
 		self.replay = False
+		self.changePlaylist = False
+		
+		self.newPlaylistName = ""
 		
 		self.songStrs = []
 		self.songLabels = []
@@ -86,25 +99,32 @@ class Window:
 			mins, secs = secToMinSec(songLength)
 			self.songStrs[0].set(self.playlist.cleanPlaylistName)
 			self.songStrs[1].set(self.playlist.songNames[self.playOrder[i]])
-			self.songStrs[2].set("(" + mins + ":" + secs + ")")
+			self.songStrs[2].set("00:00 - " + mins + ":" + secs)
 			songName = self.playlist.cleanPlaylistName + " - " + self.playlist.songNames[self.playOrder[i]] + " (" + mins + ":" + secs + ")"
 			print(songName)
 			
+			#go to new song's page
 			self.driver.get(url)
 			
 			#wait for song to finish or be skipped or shuffled
 			t = 0
-			while t < songLength and not self.skip and not self.shuffle and not self.replay and not (self.back and i > 0):
+			while t < songLength and not self.skip and not self.shuffle and not self.replay and not (self.back and i > 0) and not self.changePlaylist:
 				while not self.running:
 					self.app.update()
-					if self.skip or self.shuffle or self.replay or (self.back and i > 0):
+					if self.skip or self.shuffle or self.replay or (self.back and i > 0) or self.changePlaylist:
 						break
 					time.sleep(0.1)
+				
+				currMins, currSecs = secToMinSec(int(t))
+				self.songStrs[2].set(currMins + ":" + currSecs + " - " + mins + ":" + secs)
+				
 				t += 0.1
 				self.app.update()
 				time.sleep(0.1)
-				
-			if self.shuffle:
+			
+			if self.changePlaylist:
+				return self.newPlaylistName
+			elif self.shuffle:
 				i = -1
 			elif self.replay:
 				i -= 1
@@ -120,12 +140,11 @@ class Window:
 			i += 1
 			
 		print("END")
+		
+		return ""
 	
 	def windowInit(self):
-		#make window
-		self.root = Tk()
-		self.root.title("Youtube Music Player")
-		
+		'''
 		SCREEN_WIDTH = self.root.winfo_screenwidth()
 		SCREEN_HEIGHT = self.root.winfo_screenheight()
 		
@@ -140,6 +159,7 @@ class Window:
 		x = 0
 		y = 0
 		self.root.geometry("%dx%d+%d+%d" % (WINDOW_WIDTH, WINDOW_HEIGHT, x, y))
+		'''
 		
 		#bring window to the top
 		self.root.lift()
@@ -175,15 +195,16 @@ class Window:
 		self.shuffleButton = Button(self.app, font = "-weight bold", text = "Shuffle", command = self.shuffleButtonPressed)
 		self.shuffleButton.grid(row = 5, column = 3, sticky = E)
 		
-		#change playlist dropdown menu
-		self.playlistMenuChoice = StringVar()
-		self.playlistMenuChoice.set(self.playlist.playlistName)
+		#change playlist dropdown menu		
+		self.playlistMenuChoice = StringVar(self.app)
+		self.playlistMenuChoice.set(self.playlist.cleanPlaylistName)
 		
 		cleanPlaylistNames = []
 		for playlist in playlists:
-			cleanPlaylistNames.append(playlist.cleanPlaylistname)
+			cleanPlaylistNames.append(playlist.cleanPlaylistName)
 		
-		self.playlistMenu = OptionMenu(self.app, playlistMenuChoice, *cleanPlaylistNames, command = self.playlistMenuChanged)
+		self.playlistMenu = OptionMenu(self.app, self.playlistMenuChoice, *cleanPlaylistNames, command = self.playlistMenuChanged)
+		self.playlistMenu.config(font = "-weight bold")
 		self.playlistMenu.grid(row = 6, column = 0, sticky = W)
 		
 		#song playing
@@ -231,8 +252,19 @@ class Window:
 				i += 1
 		self.playOrder = songListIndices[:]
 	
-	def playlistMenuChanged(self):
-		print("playlist menu changed")
+	def playlistMenuChanged(self, event):
+		if self.playlist.cleanPlaylistName != self.playlistMenuChoice.get():
+			print("playlist changed from " + self.playlist.cleanPlaylistName + " to " + self.playlistMenuChoice.get())
+			
+			#get original playlist name
+			self.newPlaylistName = self.playlistMenuChoice.get().replace(" ", "_")
+			self.newPlaylistName += ".txt"
+			
+			self.changePlaylist = True
+			print("self.changePlaylist: ", self.changePlaylist)
+	
+	def exit(self):
+		self.app.destroy()
 
 
 #read file playlists
@@ -259,16 +291,37 @@ chosenPlaylistIndex = int(input(prompt))
 #webdriver initialization
 chromedriver = CHROME_DRIVER_DIR
 os.environ["webdriver.chrome.driver"] = chromedriver
+
 adblock = webdriver.ChromeOptions()
 adblock.add_extension(AD_BLOCK_DIR)
+
 driver = webdriver.Chrome(chromedriver, chrome_options = adblock)
 
 #make new tab
 driver.find_element_by_tag_name("body").send_keys(Keys.COMMAND + "t")
 
 #tkinter window initialization
-window = Window(driver, playlists[chosenPlaylistIndex])
-window.windowInit()
+root = Tk()
+root.title("Youtube Music Player")
+
+#event to close all windows
+root.protocol("WM_DELETE_WINDOW", closeEverything)
 
 #play songs
-window.play()
+loop = True
+while loop:
+	window = Window(driver, root, playlists[chosenPlaylistIndex])
+	window.windowInit()
+
+	nextPlaylist = window.play()
+
+	window.exit()
+	
+	#find new playlist
+	chosenPlaylistIndex = -1
+	for i in range(0, len(playlistNames)):
+		if (nextPlaylist == playlists[i].playlistName):
+			chosenPlaylistIndex = i
+	
+	if chosenPlaylistIndex == -1:
+		loop = False
