@@ -265,8 +265,55 @@ class Window:
 	
 	def exit(self):
 		self.app.destroy()
+		
+class MainMenu:
+	def __init__(self, root):
+		self.root = root
+		self.playPlaylist = False
+		self.makePlaylist = False
+	
+	def wait(self):
+		while !self.playPlaylist and !self.makePlaylist:
+			time.sleep(0.1)
+		
+		if self.playPlaylist:
+			return 0
+		else:
+			return 1
+		
+	def windowInit(self):
+		#bring window to the top
+		self.root.lift()
+		
+		#make frame
+		self.app = Frame(self.root)
+		self.app.grid()
+		self.app.configure(background = "gray")
+		
+		#title label
+		self.title = Label(self.app, text = "Kyle's Youtube Music Player", width = 30, font = "-weight bold")
+		self.title.grid(row = 0, column = 0, columnspan = 2)
+		
+		#play playlist button
+		self.playPlaylistButton = Button(self.app, font = "-weight bold", text = "Play Playlist", command = self.playPlaylistButtonPressed)
+		self.playPlaylistButton.grid(row = 1, column = 0)
+		
+		#make playlist button
+		self.makePlaylistButton = Button(self.app, font = "-weight bold", text = "Play Playlist", command = self.makePlaylistButtonPressed)
+		self.makePlaylistButton.grid(row = 1, column = 1)
+		
+	def playPlaylistButtonPressed(self):
+		self.playPlaylist = True
+	
+	def makePlaylistButtonPressed(self):
+		self.makePlaylist = True
+	
+	def exit(self):
+		self.app.destroy()
 
 
+
+'''
 #read file playlists
 playlistNames = os.listdir(PLAYLISTS_DIR)
 
@@ -287,18 +334,7 @@ for i in range(0, len(playlistNames)):
 prompt += "): "
 
 chosenPlaylistIndex = int(input(prompt))
-
-#webdriver initialization
-chromedriver = CHROME_DRIVER_DIR
-os.environ["webdriver.chrome.driver"] = chromedriver
-
-adblock = webdriver.ChromeOptions()
-adblock.add_extension(AD_BLOCK_DIR)
-
-driver = webdriver.Chrome(chromedriver, chrome_options = adblock)
-
-#make new tab
-driver.find_element_by_tag_name("body").send_keys(Keys.COMMAND + "t")
+'''
 
 #tkinter window initialization
 root = Tk()
@@ -307,21 +343,59 @@ root.title("Youtube Music Player")
 #event to close all windows
 root.protocol("WM_DELETE_WINDOW", closeEverything)
 
-#play songs
-loop = True
-while loop:
-	window = Window(driver, root, playlists[chosenPlaylistIndex])
-	window.windowInit()
+mainMenu = MainMenu(root)
+mainMenu.windowInit()
+choice = mainMenu.wait()
+mainMenu.exit()
 
-	nextPlaylist = window.play()
-
-	window.exit()
+if choice == 0:
+	#play playlist
+	print("play playlist")
 	
-	#find new playlist
-	chosenPlaylistIndex = -1
+	#initialize playlists
+	playlists = []
 	for i in range(0, len(playlistNames)):
-		if (nextPlaylist == playlists[i].playlistName):
-			chosenPlaylistIndex = i
+		#initialize playlists
+		playlist = Playlist(playlistNames[i], i)
+		playlist.getCleanPlaylistName()
+		playlist.readInPlaylistFile()
+		playlists.append(playlist)
 	
-	if chosenPlaylistIndex == -1:
-		loop = False
+	#TEMP
+	chosenPlaylistIndex = 0
+	#TEMP
+	
+	#webdriver initialization
+	chromedriver = CHROME_DRIVER_DIR
+	os.environ["webdriver.chrome.driver"] = chromedriver
+
+	adblock = webdriver.ChromeOptions()
+	adblock.add_extension(AD_BLOCK_DIR)
+
+	driver = webdriver.Chrome(chromedriver, chrome_options = adblock)
+
+	#make new tab
+	driver.find_element_by_tag_name("body").send_keys(Keys.COMMAND + "t")
+
+	#play songs
+	loop = True
+	while loop:
+		window = Window(driver, root, playlists[chosenPlaylistIndex])
+		window.windowInit()
+
+		nextPlaylist = window.play()
+
+		window.exit()
+		
+		#find new playlist
+		chosenPlaylistIndex = -1
+		for i in range(0, len(playlistNames)):
+			if (nextPlaylist == playlists[i].playlistName):
+				chosenPlaylistIndex = i
+		
+		if chosenPlaylistIndex == -1:
+			loop = False
+else:
+	#make playlist
+	print("make playlist")
+	
